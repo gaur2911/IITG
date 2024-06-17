@@ -72,3 +72,32 @@ mean_roc_auc = (roc_auc_xyz + roc_auc_seasonal) / 2
 print(f'ROC AUC for xyz vaccine: {roc_auc_xyz}')
 print(f'ROC AUC for seasonal vaccine: {roc_auc_seasonal}')
 print(f'Mean ROC AUC: {mean_roc_auc}')
+# Prepare the final submission file
+test_df = pd.read_csv('/content/test_set_features2.csv')  # Assuming you have a test dataset
+test_df.items()
+
+
+# Process the test data similarly
+test_df[numeric_features] = test_df[numeric_features].fillna(test_df[numeric_features].median())
+test_df[categorical_features] = test_df[categorical_features].fillna(test_df[categorical_features].mode().iloc[0])
+
+test_df = pd.get_dummies(test_df, columns=[
+    'age_group', 'education', 'race', 'sex', 'income_poverty',
+    'marital_status', 'rent_or_own', 'employment_status',
+    'hhs_geo_region', 'census_msa', 'employment_industry',
+    'employment_occupation'], drop_first=True)
+
+# Ensure all columns are aligned between train and test data
+test_df = test_df.reindex(columns=X.columns, fill_value=0)
+X_test_final = scaler.transform(test_df)
+
+y_pred_final_proba = model.predict_proba(X_test_final)
+y_pred_final_proba = np.array([proba[:, 1] for proba in y_pred_final_proba]).T
+
+submission = pd.DataFrame({
+    'respondent_id': test_df['respondent_id'],
+    'xyz_vaccine': y_pred_final_proba[:, 0],
+    'seasonal_vaccine': y_pred_final_proba[:, 1]
+})
+
+submission.to_csv('submission.csv', index=False)
